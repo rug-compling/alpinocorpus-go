@@ -12,6 +12,8 @@ import "C"
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"unsafe"
 )
 
@@ -72,10 +74,23 @@ type Reader struct {
 
 // NewReader() opens an Alpino corpus for reading
 func NewReader(filename string) (*Reader, error) {
+	recursive := false
+	fi, err := os.Stat(filename)
+	if err == nil && fi.Mode().IsDir() {
+		i, err := filepath.Glob(filename + "/*.xml")
+		if err == nil && len(i) == 0 {
+			recursive = true
+		}
+	}
+
 	cs := C.CString(filename)
 	defer C.free(unsafe.Pointer(cs))
 	r := Reader{corpusname: filename, opened: false}
-	r.c = C.alpinocorpus_open(cs)
+	if recursive {
+		r.c = C.alpinocorpus_open_recursive(cs)
+	} else {
+		r.c = C.alpinocorpus_open(cs)
+	}
 	if r.c == nil {
 		return &r, errors.New("Unable to open corpus " + filename)
 	}
