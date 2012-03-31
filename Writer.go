@@ -1,7 +1,7 @@
 package alpinocorpus
 
 /*
-#cgo LDFLAGS: -lalpino_corpus
+#cgo pkg-config: alpinocorpus
 #include <stdlib.h>
 #include <AlpinoCorpus/capi.h>
 */

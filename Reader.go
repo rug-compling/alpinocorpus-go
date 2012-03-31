@@ -2,8 +2,7 @@
 package alpinocorpus
 
 /*
-#cgo CFLAGS: -I/usr/include/libxml2
-#cgo LDFLAGS: -lalpino_corpus -lexslt
+#cgo pkg-config: alpinocorpus libexslt
 #include <stdlib.h>
 #include <string.h>
 #include <AlpinoCorpus/capi.h>
