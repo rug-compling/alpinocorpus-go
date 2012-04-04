@@ -18,11 +18,17 @@ type Writer struct {
 	c          _Ctype_alpinocorpus_writer
 }
 
-type WriterType string
+type writerType int
 
 const (
-	Compact = WriterType("COMPACT_CORPUS_WRITER")
-	DbXml   = WriterType("DBXML_CORPUS_WRITER")
+	Compact writerType = iota
+	DbXml
+)
+
+var (
+	wType = map[writerType]string{
+		Compact: "COMPACT_CORPUS_WRITER",
+		DbXml:   "DBXML_CORPUS_WRITER"}
 )
 
 // NewWriter() opens an Alpino corpus for writing.
@@ -30,7 +36,7 @@ const (
 func NewWriter(filename string, overwrite bool) (*Writer, error) {
 	cs := C.CString(filename)
 	defer C.free(unsafe.Pointer(cs))
-	ct := C.CString(string(DbXml))
+	ct := C.CString(wType[DbXml])
 	defer C.free(unsafe.Pointer(ct))
 	ov := 0
 	if overwrite {
@@ -48,10 +54,10 @@ func NewWriter(filename string, overwrite bool) (*Writer, error) {
 // NewWriterType() opens an Alpino corpus for writing.
 // The type of corpus is specified in the third argument.
 // Currently, the only valid types are Compact and DbXml.
-func NewWriterType(filename string, overwrite bool, writertype WriterType) (*Writer, error) {
+func NewWriterType(filename string, overwrite bool, writertype writerType) (*Writer, error) {
 	cs := C.CString(filename)
 	defer C.free(unsafe.Pointer(cs))
-	ct := C.CString(string(writertype))
+	ct := C.CString(wType[writertype])
 	defer C.free(unsafe.Pointer(ct))
 	ov := 0
 	if overwrite {
@@ -113,8 +119,8 @@ func (w *Writer) isopen() error {
 
 // Check whether a particular writer type is available.
 // Currently, the only valid types are Compact and DbXml.
-func WriterAvailable(writertype WriterType) bool {
-	ct := C.CString(string(writertype))
+func WriterAvailable(writertype writerType) bool {
+	ct := C.CString(wType[writertype])
 	defer C.free(unsafe.Pointer(ct))
 	if int(C.alpinocorpus_writer_available(ct)) == 0 {
 		return false
