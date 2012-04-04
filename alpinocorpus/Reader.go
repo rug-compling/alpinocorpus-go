@@ -138,7 +138,7 @@ func (r *Reader) Get(entry string) (string, error) {
 //         log.Fatal(error)
 //     }
 //     for entries.Next() {
-//         fmt.Println(entry.Name(), ": ", entry.Contents())
+//         fmt.Println(entries.Name(), ": ", entries.Contents())
 //     }
 //     entries.Close()
 //
