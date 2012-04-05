@@ -7,6 +7,6 @@
 
     go get -u github.com/rug-compling/alpinocorpus-go/alpinocorpus
 
-## Usage
+## Docs
 
-http://gopkgdoc.appspot.com/pkg/github.com/rug-compling/alpinocorpus-go/alpinocorpus
+ * [package help](http://gopkgdoc.appspot.com/pkg/github.com/rug-compling/alpinocorpus-go/alpinocorpus)
