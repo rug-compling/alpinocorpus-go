@@ -22,21 +22,21 @@ type writerType int
 
 const (
 	Compact writerType = iota
-	DbXml
+	Dbxml
 )
 
 var (
 	wType = map[writerType]string{
 		Compact: "COMPACT_CORPUS_WRITER",
-		DbXml:   "DBXML_CORPUS_WRITER"}
+		Dbxml:   "DBXML_CORPUS_WRITER"}
 )
 
 // NewWriter() opens an Alpino corpus for writing.
-// The corpus is of type DbXml.
+// The corpus is of type Dbxml.
 func NewWriter(filename string, overwrite bool) (*Writer, error) {
 	cs := C.CString(filename)
 	defer C.free(unsafe.Pointer(cs))
-	ct := C.CString(wType[DbXml])
+	ct := C.CString(wType[Dbxml])
 	defer C.free(unsafe.Pointer(ct))
 	ov := 0
 	if overwrite {
@@ -53,7 +53,7 @@ func NewWriter(filename string, overwrite bool) (*Writer, error) {
 
 // NewWriterType() opens an Alpino corpus for writing.
 // The type of corpus is specified in the third argument.
-// Currently, the only valid types are Compact and DbXml.
+// Currently, the only valid types are Compact and Dbxml.
 func NewWriterType(filename string, overwrite bool, writertype writerType) (*Writer, error) {
 	cs := C.CString(filename)
 	defer C.free(unsafe.Pointer(cs))
@@ -118,7 +118,7 @@ func (w *Writer) isopen() error {
 }
 
 // Check whether a particular writer type is available.
-// Currently, the only valid types are Compact and DbXml.
+// Currently, the only valid types are Compact and Dbxml.
 func WriterAvailable(writertype writerType) bool {
 	ct := C.CString(wType[writertype])
 	defer C.free(unsafe.Pointer(ct))
