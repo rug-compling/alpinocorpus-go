@@ -1,5 +1,5 @@
 
-[Go](http://golang.org/) package _alpinocorpus_ provides a reader and a writer for [Alpino](http://www.let.rug.nl/vannoord/alp/Alpino/) corpora
+The [Go](http://golang.org/) package _alpinocorpus_ provides a reader and a writer for [Alpino](http://www.let.rug.nl/vannoord/alp/Alpino/) corpora.
 
 ## Dependencies
 
