@@ -25,16 +25,19 @@ type KeyValue struct {
 	Key, Value string
 }
 
+// For some examples, see: func (*Reader) GetAll
 type Entries struct {
 	it           _Ctype_alpinocorpus_iter
 	r            *Reader
 	opened       bool
 	has_contents bool
+	interrupt    chan bool
 }
 
 func (it *Entries) Keys() <-chan string {
 	ch := make(chan string)
 	go func() {
+	KeysLoop:
 		for {
 			if !it.opened {
 				break
@@ -42,7 +45,11 @@ func (it *Entries) Keys() <-chan string {
 			if C.alpinocorpus_iter_end(it.r.c, it.it) != 0 {
 				break
 			}
-			ch <- C.GoString(C.alpinocorpus_iter_value(it.it))
+			select {
+			case ch <- C.GoString(C.alpinocorpus_iter_value(it.it)):
+			case <-it.interrupt:
+				break KeysLoop
+			}
 			C.alpinocorpus_iter_next(it.r.c, it.it)
 		}
 		it.close()
@@ -54,6 +61,7 @@ func (it *Entries) Keys() <-chan string {
 func (it *Entries) Values() <-chan string {
 	ch := make(chan string)
 	go func() {
+	ValuesLoop:
 		for {
 			if !it.opened {
 				break
@@ -62,13 +70,21 @@ func (it *Entries) Values() <-chan string {
 				break
 			}
 			if it.has_contents {
-				ch <- C.GoString(C.alpinocorpus_iter_contents(it.r.c, it.it))
+				select {
+				case ch <- C.GoString(C.alpinocorpus_iter_contents(it.r.c, it.it)):
+				case <-it.interrupt:
+					break ValuesLoop
+				}
 			} else {
 				name := C.GoString(C.alpinocorpus_iter_value(it.it))
 				if name != "" {
 					c, e := it.r.Get(name)
 					if e == nil {
-						ch <- c
+						select {
+						case ch <- c:
+						case <-it.interrupt:
+							break ValuesLoop
+						}
 					}
 				}
 			}
@@ -83,6 +99,7 @@ func (it *Entries) Values() <-chan string {
 func (it *Entries) KeysValues() <-chan KeyValue {
 	ch := make(chan KeyValue)
 	go func() {
+	KeysValuesLoop:
 		for {
 			var name, cont string
 			if !it.opened {
@@ -97,7 +114,11 @@ func (it *Entries) KeysValues() <-chan KeyValue {
 			} else {
 				cont, _ = it.r.Get(name)
 			}
-			ch <- KeyValue{Key: name, Value: cont}
+			select {
+			case ch <- KeyValue{Key: name, Value: cont}:
+			case <-it.interrupt:
+				break KeysValuesLoop
+			}
 			C.alpinocorpus_iter_next(it.r.c, it.it)
 		}
 		it.close()
@@ -106,9 +127,16 @@ func (it *Entries) KeysValues() <-chan KeyValue {
 	return ch
 }
 
+func (it *Entries) Break() {
+	if it.opened {
+		it.interrupt <- true
+	}
+}
+
 func (it *Entries) close() {
 	if it.opened {
 		C.alpinocorpus_iter_destroy(it.it)
+		close(it.interrupt)
 		it.opened = false
 	}
 }
@@ -204,6 +232,28 @@ func (r *Reader) Get(entry string) (string, error) {
 //     }
 //
 // After one of these, the entries are no longer accessible.
+//
+// IMPORTANT:
+//
+// To end an iteration prematurely, use Break(), so all resources are cleaned up
+//
+// Wrong:
+//
+//     for key := range entries.Keys() {
+//         fmt.Println(key)
+//         if key == somekey {
+//             break
+//         }
+//     }
+//
+// Right:
+//
+//     for key := range entries.Keys() {
+//         fmt.Println(key)
+//         if key == somekey {
+//             entries.Break()
+//         }
+//     }
 func (r *Reader) GetAll() (*Entries, error) {
 	if e := r.isopen(); e != nil {
 		return nil, e
@@ -212,7 +262,7 @@ func (r *Reader) GetAll() (*Entries, error) {
 	if i == nil {
 		return nil, errors.New("Unable to get iterator")
 	}
-	it := Entries{it: i, r: r, opened: true, has_contents: false}
+	it := Entries{it: i, r: r, opened: true, has_contents: false, interrupt: make(chan bool)}
 	return &it, nil
 }
 
@@ -244,7 +294,7 @@ func (r *Reader) Query(query string) (*Entries, error) {
 	if i == nil {
 		return nil, errors.New("Unable to get iterator")
 	}
-	it := Entries{it: i, r: r, opened: true, has_contents: false}
+	it := Entries{it: i, r: r, opened: true, has_contents: false, interrupt: make(chan bool)}
 	return &it, nil
 }
 
@@ -289,12 +339,12 @@ func (r *Reader) QueryMod(query, markerQuery, markerAttr, markerValue, styleshee
 		defer C.free(unsafe.Pointer(csMA))
 		defer C.free(unsafe.Pointer(csMV))
 		i := C.alpinocorpus_query_stylesheet_marker_iter(r.c, csQ, csS, csMQ, csMA, csMV)
-		it := Entries{it: i, r: r, opened: true, has_contents: true}
+		it := Entries{it: i, r: r, opened: true, has_contents: true, interrupt: make(chan bool)}
 		return &it, nil
 	}
 
 	i := C.alpinocorpus_query_stylesheet_iter(r.c, csQ, csS, nil, 0)
-	it := Entries{it: i, r: r, opened: true, has_contents: true}
+	it := Entries{it: i, r: r, opened: true, has_contents: true, interrupt: make(chan bool)}
 	return &it, nil
 
 }
