@@ -147,17 +147,7 @@ type Reader struct {
 	c          _Ctype_alpinocorpus_reader
 }
 
-// NewReader() opens an Alpino corpus for reading
-func NewReader(filename string) (*Reader, error) {
-	recursive := false
-	fi, err := os.Stat(filename)
-	if err == nil && fi.Mode().IsDir() {
-		i, err := filepath.Glob(filename + "/*.xml")
-		if err == nil && len(i) == 0 {
-			recursive = true
-		}
-	}
-
+func newReader(filename string, recursive bool) (*Reader, error) {
 	cs := C.CString(filename)
 	defer C.free(unsafe.Pointer(cs))
 	r := Reader{corpusname: filename, opened: false}
@@ -171,6 +161,31 @@ func NewReader(filename string) (*Reader, error) {
 	}
 	r.opened = true
 	return &r, nil
+}
+
+// NewReader() opens an Alpino corpus for reading
+//
+// If filename is a directory, guess what kind of corpus it is based on content of directory
+func NewReader(filename string) (*Reader, error) {
+	recursive := false
+	fi, err := os.Stat(filename)
+	if err == nil && fi.Mode().IsDir() {
+		i, err := filepath.Glob(filename + "/*.xml")
+		if err == nil && len(i) == 0 {
+			recursive = true
+		}
+	}
+	return newReader(filename, recursive)
+}
+
+// NewReaderRecursive() opens an Alpino corpus for reading from a directory, recursively
+func NewReaderRecursive(dirname string) (*Reader, error) {
+	return newReader(dirname, true)
+}
+
+// NewReaderNonRecursive() opens an Alpino corpus for reading from a directory, non-recursively
+func NewReaderNonRecursive(dirname string) (*Reader, error) {
+	return newReader(dirname, false)
 }
 
 // Len() returns the number of entries in the corpus
