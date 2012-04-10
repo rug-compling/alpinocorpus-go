@@ -21,45 +21,92 @@ func init() {
 	C.exsltRegisterAll()
 }
 
+type KeyValue struct {
+	Key, Value string
+}
+
 type Entries struct {
 	it           _Ctype_alpinocorpus_iter
 	r            *Reader
 	opened       bool
 	has_contents bool
-	name         string
-	contents     string
 }
 
-func (it *Entries) Next() bool {
-	if !it.opened {
-		return false
-	}
-	if C.alpinocorpus_iter_end(it.r.c, it.it) != 0 {
-		return false
-	}
-	it.name = C.GoString(C.alpinocorpus_iter_value(it.it))
-	if it.has_contents {
-		it.contents = C.GoString(C.alpinocorpus_iter_contents(it.r.c, it.it))
-	}
-	C.alpinocorpus_iter_next(it.r.c, it.it)
-	return true
+func (it *Entries) Keys() <-chan string {
+	ch := make(chan string)
+	go func() {
+		for {
+			if !it.opened {
+				break
+			}
+			if C.alpinocorpus_iter_end(it.r.c, it.it) != 0 {
+				break
+			}
+			ch <- C.GoString(C.alpinocorpus_iter_value(it.it))
+			C.alpinocorpus_iter_next(it.r.c, it.it)
+		}
+		it.close()
+		close(ch)
+	}()
+	return ch
 }
 
-func (it *Entries) Name() string {
-	return it.name
+func (it *Entries) Values() <-chan string {
+	ch := make(chan string)
+	go func() {
+		for {
+			if !it.opened {
+				break
+			}
+			if C.alpinocorpus_iter_end(it.r.c, it.it) != 0 {
+				break
+			}
+			if it.has_contents {
+				ch <- C.GoString(C.alpinocorpus_iter_contents(it.r.c, it.it))
+			} else {
+				name := C.GoString(C.alpinocorpus_iter_value(it.it))
+				if name != "" {
+					c, e := it.r.Get(name)
+					if e == nil {
+						ch <- c
+					}
+				}
+			}
+			C.alpinocorpus_iter_next(it.r.c, it.it)
+		}
+		it.close()
+		close(ch)
+	}()
+	return ch
 }
 
-func (it *Entries) Contents() string {
-	if it.has_contents {
-		return it.contents
-	}
-	if it.opened && it.name != "" {
-		it.contents, _ = it.r.Get(it.name)
-	}
-	return it.contents
+func (it *Entries) KeysValues() <-chan KeyValue {
+	ch := make(chan KeyValue)
+	go func() {
+		for {
+			var name, cont string
+			if !it.opened {
+				break
+			}
+			if C.alpinocorpus_iter_end(it.r.c, it.it) != 0 {
+				break
+			}
+			name = C.GoString(C.alpinocorpus_iter_value(it.it))
+			if it.has_contents {
+				cont = C.GoString(C.alpinocorpus_iter_contents(it.r.c, it.it))
+			} else {
+				cont, _ = it.r.Get(name)
+			}
+			ch <- KeyValue{Key: name, Value: cont}
+			C.alpinocorpus_iter_next(it.r.c, it.it)
+		}
+		it.close()
+		close(ch)
+	}()
+	return ch
 }
 
-func (it *Entries) Close() {
+func (it *Entries) close() {
 	if it.opened {
 		C.alpinocorpus_iter_destroy(it.it)
 		it.opened = false
@@ -137,12 +184,26 @@ func (r *Reader) Get(entry string) (string, error) {
 //     if error != nil {
 //         log.Fatal(error)
 //     }
-//     for entries.Next() {
-//         fmt.Println(entries.Name(), ": ", entries.Contents())
-//     }
-//     entries.Close()
 //
-// Don't forget to call Close() at the end!
+// And then, this:
+//
+//     for key := range entries.Keys() {
+//         fmt.Println(key)
+//     }
+//
+// Or this:
+//
+//     for value := range entries.Values() {
+//         fmt.Println(value)
+//     }
+//
+// Or this:
+//
+//     for pair := range entries.KeysValues() {
+//         fmt.Println(pair.Key, ": ", pair.Value)
+//     }
+//
+// After one of these, the entries are no longer accessible.
 func (r *Reader) GetAll() (*Entries, error) {
 	if e := r.isopen(); e != nil {
 		return nil, e
