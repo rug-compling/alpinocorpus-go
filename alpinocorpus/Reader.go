@@ -184,6 +184,8 @@ func NewReaderRecursive(dirname string) (*Reader, error) {
 }
 
 // NewReaderNonRecursive() opens an Alpino corpus for reading from a directory, non-recursively
+//
+// (actually, it opens any non-recursive corpus)
 func NewReaderNonRecursive(dirname string) (*Reader, error) {
 	return newReader(dirname, false)
 }
