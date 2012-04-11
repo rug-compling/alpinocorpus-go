@@ -1,4 +1,3 @@
-// Package alpinocorpus provides a reader and a writer for Alpino corpora
 package alpinocorpus
 
 /*
@@ -25,7 +24,6 @@ type KeyValue struct {
 	Key, Value string
 }
 
-// For some examples, see: func (*Reader) GetAll
 type Entries struct {
 	it           _Ctype_alpinocorpus_iter
 	r            *Reader
@@ -222,55 +220,6 @@ func (r *Reader) Get(entry string) (string, error) {
 }
 
 // GetAll() gives access to all entries in the corpus
-//
-// Example usage:
-//
-//     entries, error := reader.GetAll()
-//     if error != nil {
-//         log.Fatal(error)
-//     }
-//
-// And then, this:
-//
-//     for key := range entries.Keys() {
-//         fmt.Println(key)
-//     }
-//
-// Or this:
-//
-//     for value := range entries.Values() {
-//         fmt.Println(value)
-//     }
-//
-// Or this:
-//
-//     for pair := range entries.KeysValues() {
-//         fmt.Println(pair.Key, ": ", pair.Value)
-//     }
-//
-// After one of these, the entries are no longer accessible.
-//
-// IMPORTANT:
-//
-// To end an iteration prematurely, use Break(), so all resources are cleaned up
-//
-// Wrong:
-//
-//     for key := range entries.Keys() {
-//         fmt.Println(key)
-//         if key == somekey {
-//             break
-//         }
-//     }
-//
-// Right:
-//
-//     for key := range entries.Keys() {
-//         fmt.Println(key)
-//         if key == somekey {
-//             entries.Break()
-//         }
-//     }
 func (r *Reader) GetAll() (*Entries, error) {
 	if e := r.isopen(); e != nil {
 		return nil, e
@@ -297,8 +246,6 @@ func (r *Reader) ValidQuery(query string) bool {
 }
 
 // Query() gives access to the names of all entries that match a certain query
-//
-// See GetAll() for an example of how to use the result
 func (r *Reader) Query(query string) (*Entries, error) {
 	if e := r.isopen(); e != nil {
 		return nil, e
@@ -316,8 +263,6 @@ func (r *Reader) Query(query string) (*Entries, error) {
 }
 
 // QueryMod() gives access to all entries that match a certain query, using a stylesheet to modify the output
-//
-// See GetAll() for an example of how to use the result
 func (r *Reader) QueryMod(query, markerQuery, markerAttr, markerValue, stylesheet string) (*Entries, error) {
 	if e := r.isopen(); e != nil {
 		return nil, e
