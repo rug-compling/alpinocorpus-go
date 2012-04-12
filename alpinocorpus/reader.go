@@ -188,6 +188,14 @@ func NewReaderNonRecursive(dirname string) (*Reader, error) {
 	return newReader(dirname, false)
 }
 
+// Name() returns the canonical name of the corpus
+func (r *Reader) Name() string {
+	if !r.opened {
+		return ""
+	}
+	return C.GoString(C.alpinocorpus_name(r.c))
+}
+
 // Len() returns the number of entries in the corpus
 func (r *Reader) Len() int {
 	if !r.opened {
