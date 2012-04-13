@@ -140,9 +140,10 @@ func (it *Entries) close() {
 }
 
 type Reader struct {
-	corpusname string
-	opened     bool
-	c          _Ctype_alpinocorpus_reader
+	corpusname  string
+	opened      bool
+	c           _Ctype_alpinocorpus_reader
+	entrieslist [](*Entries)
 }
 
 func newReader(filename string, recursive bool) (*Reader, error) {
@@ -208,6 +209,9 @@ func (r *Reader) Len() int {
 func (r *Reader) Close() {
 	if r.opened {
 		C.alpinocorpus_close(r.c)
+		for _, e := range r.entrieslist {
+			e.close()
+		}
 		r.opened = false
 	}
 }
@@ -237,6 +241,7 @@ func (r *Reader) GetAll() (*Entries, error) {
 		return nil, errors.New("Unable to get iterator")
 	}
 	it := Entries{it: i, r: r, opened: true, has_contents: false, interrupt: make(chan bool)}
+	r.entrieslist = append(r.entrieslist, &it)
 	return &it, nil
 }
 
@@ -267,6 +272,7 @@ func (r *Reader) Query(query string) (*Entries, error) {
 		return nil, errors.New("Unable to get iterator")
 	}
 	it := Entries{it: i, r: r, opened: true, has_contents: false, interrupt: make(chan bool)}
+	r.entrieslist = append(r.entrieslist, &it)
 	return &it, nil
 }
 
@@ -310,11 +316,13 @@ func (r *Reader) QueryMod(query, markerQuery, markerAttr, markerValue, styleshee
 		defer C.free(unsafe.Pointer(csMV))
 		i := C.alpinocorpus_query_stylesheet_marker_iter(r.c, csQ, csS, csMQ, csMA, csMV)
 		it := Entries{it: i, r: r, opened: true, has_contents: true, interrupt: make(chan bool)}
+		r.entrieslist = append(r.entrieslist, &it)
 		return &it, nil
 	}
 
 	i := C.alpinocorpus_query_stylesheet_iter(r.c, csQ, csS, nil, 0)
 	it := Entries{it: i, r: r, opened: true, has_contents: true, interrupt: make(chan bool)}
+	r.entrieslist = append(r.entrieslist, &it)
 	return &it, nil
 
 }
