@@ -9,6 +9,7 @@ import "C"
 
 import (
 	"errors"
+	"runtime"
 	"unsafe"
 )
 
@@ -48,6 +49,7 @@ func NewWriter(filename string, overwrite bool) (*Writer, error) {
 		return &w, errors.New("Unable to open corpus " + filename)
 	}
 	w.opened = true
+	runtime.SetFinalizer(&w, (*Writer).Close)
 	return &w, nil
 }
 
@@ -69,6 +71,7 @@ func NewWriterType(filename string, overwrite bool, writertype writerType) (*Wri
 		return &w, errors.New("Unable to open corpus " + filename)
 	}
 	w.opened = true
+	runtime.SetFinalizer(&w, (*Writer).Close)
 	return &w, nil
 }
 

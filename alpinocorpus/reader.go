@@ -13,6 +13,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"unsafe"
 )
 
@@ -159,6 +160,9 @@ func newReader(filename string, recursive bool) (*Reader, error) {
 		return &r, errors.New("Unable to open corpus " + filename)
 	}
 	r.opened = true
+
+	runtime.SetFinalizer(&r, (*Reader).Close)
+
 	return &r, nil
 }
 
