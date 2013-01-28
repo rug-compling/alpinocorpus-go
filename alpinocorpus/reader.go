@@ -41,15 +41,17 @@ func (it *Entries) Keys() <-chan string {
 			if !it.opened {
 				break
 			}
-			if C.alpinocorpus_iter_end(it.r.c, it.it) != 0 {
+			if C.alpinocorpus_iter_has_next(it.r.c, it.it) == 0 {
 				break
 			}
+			ent := C.alpinocorpus_iter_next(it.r.c, it.it)
+			key := C.GoString(C.alpinocorpus_entry_name(ent))
+			C.alpinocorpus_entry_free(ent)
 			select {
-			case ch <- C.GoString(C.alpinocorpus_iter_value(it.it)):
+			case ch <- key:
 			case <-it.interrupt:
 				break KeysLoop
 			}
-			C.alpinocorpus_iter_next(it.r.c, it.it)
 		}
 		it.close()
 		close(ch)
@@ -65,17 +67,21 @@ func (it *Entries) Values() <-chan string {
 			if !it.opened {
 				break
 			}
-			if C.alpinocorpus_iter_end(it.r.c, it.it) != 0 {
+			if C.alpinocorpus_iter_has_next(it.r.c, it.it) == 0 {
 				break
 			}
+			ent := C.alpinocorpus_iter_next(it.r.c, it.it)
 			if it.has_contents {
+				value := C.GoString(C.alpinocorpus_entry_contents(ent))
+				C.alpinocorpus_entry_free(ent)
 				select {
-				case ch <- C.GoString(C.alpinocorpus_iter_contents(it.r.c, it.it)):
+				case ch <- value:
 				case <-it.interrupt:
 					break ValuesLoop
 				}
 			} else {
-				name := C.GoString(C.alpinocorpus_iter_value(it.it))
+				name := C.GoString(C.alpinocorpus_entry_name(ent))
+				C.alpinocorpus_entry_free(ent)
 				if name != "" {
 					c, e := it.r.Get(name)
 					if e == nil {
@@ -87,7 +93,6 @@ func (it *Entries) Values() <-chan string {
 					}
 				}
 			}
-			C.alpinocorpus_iter_next(it.r.c, it.it)
 		}
 		it.close()
 		close(ch)
@@ -104,21 +109,22 @@ func (it *Entries) KeysValues() <-chan KeyValue {
 			if !it.opened {
 				break
 			}
-			if C.alpinocorpus_iter_end(it.r.c, it.it) != 0 {
+			if C.alpinocorpus_iter_has_next(it.r.c, it.it) == 0 {
 				break
 			}
-			name = C.GoString(C.alpinocorpus_iter_value(it.it))
+			ent := C.alpinocorpus_iter_next(it.r.c, it.it)
+			name = C.GoString(C.alpinocorpus_entry_name(ent))
 			if it.has_contents {
-				cont = C.GoString(C.alpinocorpus_iter_contents(it.r.c, it.it))
+				cont = C.GoString(C.alpinocorpus_entry_contents(ent))
 			} else {
 				cont, _ = it.r.Get(name)
 			}
+			C.alpinocorpus_entry_free(ent)
 			select {
 			case ch <- KeyValue{Key: name, Value: cont}:
 			case <-it.interrupt:
 				break KeysValuesLoop
 			}
-			C.alpinocorpus_iter_next(it.r.c, it.it)
 		}
 		it.close()
 		close(ch)
