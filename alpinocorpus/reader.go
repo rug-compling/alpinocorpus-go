@@ -1,11 +1,10 @@
 package alpinocorpus
 
 /*
-#cgo pkg-config: alpinocorpus libexslt
+#cgo pkg-config: alpinocorpus
 #include <stdlib.h>
 #include <string.h>
 #include <AlpinoCorpus/capi.h>
-#include <libexslt/exslt.h>
 */
 import "C"
 
@@ -18,7 +17,7 @@ import (
 )
 
 func init() {
-	C.exsltRegisterAll()
+	C.alpinocorpus_initialize()
 }
 
 type KeyValue struct {
