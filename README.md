@@ -12,4 +12,4 @@ The [Go](http://golang.org/) package _alpinocorpus_ provides a reader and a writ
 
 ## Docs
 
- * [package help](http://gopkgdoc.appspot.com/pkg/github.com/rug-compling/alpinocorpus-go/alpinocorpus)
+ * [package help](http://godoc.org/github.com/rug-compling/alpinocorpus-go/alpinocorpus)
