@@ -32,103 +32,112 @@ type Entries struct {
 	interrupt    chan bool
 }
 
-func (it *Entries) Keys() <-chan string {
-	ch := make(chan string)
-	go func() {
-	KeysLoop:
-		for {
-			if !it.opened {
-				break
-			}
-			if C.alpinocorpus_iter_has_next(it.r.c, it.it) == 0 {
-				break
-			}
-			ent := C.alpinocorpus_iter_next(it.r.c, it.it)
-			key := C.GoString(C.alpinocorpus_entry_name(ent))
-			C.alpinocorpus_entry_free(ent)
-			select {
-			case ch <- key:
-			case <-it.interrupt:
-				break KeysLoop
-			}
+// Produce all keys on ch.
+//
+// Usage:
+//  ch := make(chan string)
+//  go it.Keys(ch)
+//
+// Will close ch when it's finished.
+func (it *Entries) Keys(ch chan<- string) {
+KeysLoop:
+	for {
+		if !it.opened {
+			break
 		}
-		it.close()
-		close(ch)
-	}()
-	return ch
+		if C.alpinocorpus_iter_has_next(it.r.c, it.it) == 0 {
+			break
+		}
+		ent := C.alpinocorpus_iter_next(it.r.c, it.it)
+		key := C.GoString(C.alpinocorpus_entry_name(ent))
+		C.alpinocorpus_entry_free(ent)
+		select {
+		case ch <- key:
+		case <-it.interrupt:
+			break KeysLoop
+		}
+	}
+	it.close()
+	close(ch)
 }
 
-func (it *Entries) Values() <-chan string {
-	ch := make(chan string)
-	go func() {
-	ValuesLoop:
-		for {
-			if !it.opened {
-				break
+// Produce all values on ch.
+//
+// Usage:
+//  ch := make(chan string)
+//  go it.Values(ch)
+//
+// Will close ch when it's finished.
+func (it *Entries) Values(ch chan<- string) {
+ValuesLoop:
+	for {
+		if !it.opened {
+			break
+		}
+		if C.alpinocorpus_iter_has_next(it.r.c, it.it) == 0 {
+			break
+		}
+		ent := C.alpinocorpus_iter_next(it.r.c, it.it)
+		if it.has_contents {
+			value := C.GoString(C.alpinocorpus_entry_contents(ent))
+			C.alpinocorpus_entry_free(ent)
+			select {
+			case ch <- value:
+			case <-it.interrupt:
+				break ValuesLoop
 			}
-			if C.alpinocorpus_iter_has_next(it.r.c, it.it) == 0 {
-				break
-			}
-			ent := C.alpinocorpus_iter_next(it.r.c, it.it)
-			if it.has_contents {
-				value := C.GoString(C.alpinocorpus_entry_contents(ent))
-				C.alpinocorpus_entry_free(ent)
-				select {
-				case ch <- value:
-				case <-it.interrupt:
-					break ValuesLoop
-				}
-			} else {
-				name := C.GoString(C.alpinocorpus_entry_name(ent))
-				C.alpinocorpus_entry_free(ent)
-				if name != "" {
-					c, e := it.r.Get(name)
-					if e == nil {
-						select {
-						case ch <- c:
-						case <-it.interrupt:
-							break ValuesLoop
-						}
+		} else {
+			name := C.GoString(C.alpinocorpus_entry_name(ent))
+			C.alpinocorpus_entry_free(ent)
+			if name != "" {
+				c, e := it.r.Get(name)
+				if e == nil {
+					select {
+					case ch <- c:
+					case <-it.interrupt:
+						break ValuesLoop
 					}
 				}
 			}
 		}
-		it.close()
-		close(ch)
-	}()
-	return ch
+	}
+	it.close()
+	close(ch)
 }
 
-func (it *Entries) KeysValues() <-chan KeyValue {
-	ch := make(chan KeyValue)
-	go func() {
-	KeysValuesLoop:
-		for {
-			var name, cont string
-			if !it.opened {
-				break
-			}
-			if C.alpinocorpus_iter_has_next(it.r.c, it.it) == 0 {
-				break
-			}
-			ent := C.alpinocorpus_iter_next(it.r.c, it.it)
-			name = C.GoString(C.alpinocorpus_entry_name(ent))
-			if it.has_contents {
-				cont = C.GoString(C.alpinocorpus_entry_contents(ent))
-			} else {
-				cont, _ = it.r.Get(name)
-			}
-			C.alpinocorpus_entry_free(ent)
-			select {
-			case ch <- KeyValue{Key: name, Value: cont}:
-			case <-it.interrupt:
-				break KeysValuesLoop
-			}
+// Produce all values on ch.
+//
+// Usage:
+//  ch := make(chan KeyValue)
+//  go it.KeysValues(ch)
+//
+// Will close ch when it's finished.
+func (it *Entries) KeysValues(ch chan<- KeyValue) {
+KeysValuesLoop:
+	for {
+		var name, cont string
+		if !it.opened {
+			break
 		}
-		it.close()
-		close(ch)
-	}()
-	return ch
+		if C.alpinocorpus_iter_has_next(it.r.c, it.it) == 0 {
+			break
+		}
+		ent := C.alpinocorpus_iter_next(it.r.c, it.it)
+		name = C.GoString(C.alpinocorpus_entry_name(ent))
+		if it.has_contents {
+			cont = C.GoString(C.alpinocorpus_entry_contents(ent))
+		} else {
+			cont, _ = it.r.Get(name)
+		}
+		C.alpinocorpus_entry_free(ent)
+		select {
+		case ch <- KeyValue{Key: name, Value: cont}:
+		case <-it.interrupt:
+			break KeysValuesLoop
+		}
+	}
+	it.close()
+	close(ch)
 }
 
 func (it *Entries) Break() {
