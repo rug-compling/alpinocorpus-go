@@ -1,6 +1,16 @@
 package alpinocorpus
 
 /*
+Functions that need free:
+alpinocorpus_read
+alpinocorpus_read_mark_queries
+alpinocorpus_read_mark_query
+alpinocorpus_name
+alpinocorpus_write
+alpinocorpus_write_corpus
+*/
+
+/*
 #cgo pkg-config: alpinocorpus
 #include <stdlib.h>
 #include <string.h>
@@ -13,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"unsafe"
 )
 
@@ -30,6 +41,7 @@ type Entries struct {
 	opened       bool
 	has_contents bool
 	interrupt    chan bool
+	mu           sync.Mutex
 }
 
 func (it *Entries) Keys() <-chan string {
@@ -138,11 +150,14 @@ func (it *Entries) Break() {
 }
 
 func (it *Entries) close() {
+	it.mu.Lock()
 	if it.opened {
-		C.alpinocorpus_iter_destroy(it.it)
-		close(it.interrupt)
 		it.opened = false
+		C.alpinocorpus_iter_destroy(it.it)
+		it.r = nil
+		close(it.interrupt)
 	}
+	it.mu.Unlock()
 }
 
 type Reader struct {
@@ -150,6 +165,7 @@ type Reader struct {
 	opened      bool
 	c           _Ctype_alpinocorpus_reader
 	entrieslist [](*Entries)
+	mu          sync.Mutex
 }
 
 func newReader(filename string, recursive bool) (*Reader, error) {
@@ -203,7 +219,9 @@ func (r *Reader) Name() string {
 	if !r.opened {
 		return ""
 	}
-	return C.GoString(C.alpinocorpus_name(r.c))
+	cs := C.alpinocorpus_name(r.c)
+	defer C.free(unsafe.Pointer(cs))
+	return C.GoString(cs)
 }
 
 // Len() returns the number of entries in the corpus
@@ -216,13 +234,16 @@ func (r *Reader) Len() int {
 
 // Close() closes the corpus
 func (r *Reader) Close() {
+	r.mu.Lock()
 	if r.opened {
-		C.alpinocorpus_close(r.c)
-		for _, e := range r.entrieslist {
-			e.close()
-		}
 		r.opened = false
+		C.alpinocorpus_close(r.c)
+		for i, e := range r.entrieslist {
+			e.close()
+			r.entrieslist[i] = nil
+		}
 	}
+	r.mu.Unlock()
 }
 
 // Get() returns the contents of an entry given its label
@@ -233,11 +254,12 @@ func (r *Reader) Get(entry string) (string, error) {
 
 	cs := C.CString(entry)
 	defer C.free(unsafe.Pointer(cs))
-	s := C.alpinocorpus_read(r.c, cs)
-	if s == nil {
+	cs2 := C.alpinocorpus_read(r.c, cs)
+	defer C.free(unsafe.Pointer(cs2))
+	if cs2 == nil {
 		return "", errors.New("Entry not found: " + entry)
 	}
-	return C.GoString(s), nil
+	return C.GoString(cs2), nil
 }
 
 // GetAll() gives access to all entries in the corpus
@@ -359,6 +381,7 @@ func (r *Reader) GetMod(entry, markerQuery, markerAttr, markerValue string) (str
 	if s == nil {
 		return "", errors.New("Entry not found: " + entry)
 	}
+	defer C.free(unsafe.Pointer(s))
 	return C.GoString(s), nil
 }
 

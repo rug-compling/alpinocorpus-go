@@ -1,6 +1,17 @@
 package alpinocorpus
 
 /*
+Functions that need free:
+alpinocorpus_read
+alpinocorpus_read_mark_queries
+alpinocorpus_read_mark_query
+alpinocorpus_name
+alpinocorpus_write
+alpinocorpus_write_corpus
+*/
+
+
+/*
 #cgo pkg-config: alpinocorpus
 #include <stdlib.h>
 #include <AlpinoCorpus/capi.h>
@@ -10,6 +21,7 @@ import "C"
 import (
 	"errors"
 	"runtime"
+	"sync"
 	"unsafe"
 )
 
@@ -17,6 +29,7 @@ type Writer struct {
 	corpusname string
 	opened     bool
 	c          _Ctype_alpinocorpus_writer
+	mu         sync.Mutex
 }
 
 type writerType int
@@ -85,6 +98,7 @@ func (w *Writer) Write(name, contents string) error {
 	defer C.free(unsafe.Pointer(csC))
 	e := C.alpinocorpus_write(w.c, csN, csC)
 	if e != nil {
+		defer C.free(unsafe.Pointer(e))
 		return errors.New(C.GoString(e))
 	}
 	return nil
@@ -100,6 +114,7 @@ func (w *Writer) WriteCorpus(r *Reader, failsafe bool) error {
 	}
 	e := C.alpinocorpus_write_corpus(w.c, r.c, C.int(fs))
 	if e != nil {
+		defer C.free(unsafe.Pointer(e))
 		return errors.New(C.GoString(e))
 	}
 	return nil
@@ -107,10 +122,12 @@ func (w *Writer) WriteCorpus(r *Reader, failsafe bool) error {
 
 // Close() closes the corpus
 func (w *Writer) Close() {
+	w.mu.Lock()
 	if w.opened {
-		C.alpinocorpus_writer_close(w.c)
 		w.opened = false
+		C.alpinocorpus_writer_close(w.c)
 	}
+	w.mu.Unlock()
 }
 
 func (w *Writer) isopen() error {
