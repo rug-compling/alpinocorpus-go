@@ -1,6 +1,6 @@
 /*
 
-Package alpinocorpus provides a reader and a writer for Alpino corpora.
+Package alpinocorpus provides a reader and a writer for Alpino corpora [corpus linguistics].
 
 Example usage:
 
