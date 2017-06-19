@@ -20,6 +20,7 @@ import "C"
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -42,6 +43,24 @@ type Entries struct {
 	has_contents bool
 	interrupt    chan bool
 	mu           sync.Mutex
+}
+
+type Order C.sort_order_t
+
+const (
+	NaturalOrder   = Order(C.natural_order)
+	NumericalOrder = Order(C.numerical_order)
+)
+
+func (o Order) String() string {
+	switch o {
+	case NaturalOrder:
+		return "NaturalOrder"
+	case NumericalOrder:
+		return "NumericalOrder"
+	default:
+		return fmt.Sprintf("UnknownOrder(%v)", C.sort_order_t(o))
+	}
 }
 
 func (it *Entries) Keys() <-chan string {
@@ -263,11 +282,11 @@ func (r *Reader) Get(entry string) (string, error) {
 }
 
 // GetAll() gives access to all entries in the corpus
-func (r *Reader) GetAll() (*Entries, error) {
+func (r *Reader) GetAll(order Order) (*Entries, error) {
 	if e := r.isopen(); e != nil {
 		return nil, e
 	}
-	i := C.alpinocorpus_entry_iter(r.c)
+	i := C.alpinocorpus_entry_iter(r.c, C.sort_order_t(order))
 	if i == nil {
 		return nil, errors.New("Unable to get iterator")
 	}
@@ -290,14 +309,14 @@ func (r *Reader) ValidQuery(query string) bool {
 }
 
 // Query() gives access to the names of all entries that match a certain query
-func (r *Reader) Query(query string) (*Entries, error) {
+func (r *Reader) Query(query string, order Order) (*Entries, error) {
 	if e := r.isopen(); e != nil {
 		return nil, e
 	}
 
 	cs := C.CString(query)
 	defer C.free(unsafe.Pointer(cs))
-	i := C.alpinocorpus_query_iter(r.c, cs)
+	i := C.alpinocorpus_query_iter(r.c, cs, C.sort_order_t(order))
 
 	if i == nil {
 		return nil, errors.New("Unable to get iterator")
@@ -308,7 +327,7 @@ func (r *Reader) Query(query string) (*Entries, error) {
 }
 
 // QueryMod() gives access to all entries that match a certain query, using a stylesheet to modify the output
-func (r *Reader) QueryMod(query, markerQuery, markerAttr, markerValue, stylesheet string) (*Entries, error) {
+func (r *Reader) QueryMod(query, markerQuery, markerAttr, markerValue, stylesheet string, order Order) (*Entries, error) {
 	if e := r.isopen(); e != nil {
 		return nil, e
 	}
@@ -322,11 +341,11 @@ func (r *Reader) QueryMod(query, markerQuery, markerAttr, markerValue, styleshee
 	}
 
 	if query == "" && len(stylesheet) == 0 {
-		return r.GetAll()
+		return r.GetAll(order)
 	}
 
 	if len(stylesheet) == 0 {
-		return r.Query(query)
+		return r.Query(query, order)
 	}
 
 	csQ := C.CString(query)
@@ -345,13 +364,13 @@ func (r *Reader) QueryMod(query, markerQuery, markerAttr, markerValue, styleshee
 		defer C.free(unsafe.Pointer(csMQ))
 		defer C.free(unsafe.Pointer(csMA))
 		defer C.free(unsafe.Pointer(csMV))
-		i := C.alpinocorpus_query_stylesheet_marker_iter(r.c, csQ, csS, csMQ, csMA, csMV)
+		i := C.alpinocorpus_query_stylesheet_marker_iter(r.c, csQ, csS, csMQ, csMA, csMV, C.sort_order_t(order))
 		it := Entries{it: i, r: r, opened: true, has_contents: true, interrupt: make(chan bool)}
 		r.entrieslist = append(r.entrieslist, &it)
 		return &it, nil
 	}
 
-	i := C.alpinocorpus_query_stylesheet_iter(r.c, csQ, csS, nil, 0)
+	i := C.alpinocorpus_query_stylesheet_iter(r.c, csQ, csS, nil, 0, C.sort_order_t(order))
 	it := Entries{it: i, r: r, opened: true, has_contents: true, interrupt: make(chan bool)}
 	r.entrieslist = append(r.entrieslist, &it)
 	return &it, nil
