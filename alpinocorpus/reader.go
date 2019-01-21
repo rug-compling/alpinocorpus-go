@@ -37,7 +37,7 @@ type KeyValue struct {
 }
 
 type Entries struct {
-	it           _Ctype_alpinocorpus_iter
+	it           C.alpinocorpus_iter
 	r            *Reader
 	opened       bool
 	has_contents bool
@@ -182,7 +182,7 @@ func (it *Entries) close() {
 type Reader struct {
 	corpusname  string
 	opened      bool
-	c           _Ctype_alpinocorpus_reader
+	c           C.alpinocorpus_reader
 	entrieslist [](*Entries)
 	mu          sync.Mutex
 }

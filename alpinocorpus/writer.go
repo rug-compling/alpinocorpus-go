@@ -10,7 +10,6 @@ alpinocorpus_write
 alpinocorpus_write_corpus
 */
 
-
 /*
 #cgo pkg-config: alpinocorpus
 #include <stdlib.h>
@@ -28,7 +27,7 @@ import (
 type Writer struct {
 	corpusname string
 	opened     bool
-	c          _Ctype_alpinocorpus_writer
+	c          C.alpinocorpus_writer
 	mu         sync.Mutex
 }
 
