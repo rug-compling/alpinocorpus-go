@@ -6,24 +6,24 @@ Example usage:
 
 Opening a corpus for reading:
 
-    reader, error := alpinocorpus.NewReader(filename)
+    reader, err := alpinocorpus.NewReader(filename)
     defer reader.Close()  // to free resources
-    if error != nil {
-        log.Fatalln(error)
+    if err != nil {
+        log.Fatalln(err)
     }
 
 Getting all entries from the corpus:
 
-    entries, error := reader.GetAll()
-    if error != nil {
-        log.Fatalln(error)
+    entries, err := reader.GetAll(alpinocorpus.NaturalOrder)
+    if err != nil {
+        log.Fatalln(err)
     }
 
 Or, getting al entries that match some query:
 
-    entries, error := reader.Query("//node[@root=\"fiets\"]")
-    if error != nil {
-        log.Fatalln(error)
+    entries, err := reader.Query("//node[@root=\"fiets\"]")
+    if err != nil {
+        log.Fatalln(err)
     }
 
 And then, this:
